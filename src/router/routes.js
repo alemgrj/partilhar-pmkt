@@ -1,8 +1,57 @@
 const routes = [
   {
+    path: '/login',
+    component: () => import('pages/LoginPage.vue'),
+  },
+  {
     path: '/',
     component: () => import('layouts/MainLayout.vue'),
-    children: [{ path: '', component: () => import('pages/IndexPage.vue') }],
+    meta: { requiresAuth: true },
+    children: [
+      {
+        path: '',
+        redirect: '/dashboard',
+      },
+      {
+        path: 'dashboard',
+        component: () => import('pages/DashboardPage.vue'),
+      },
+      {
+        path: 'board',
+        component: () => import('pages/BoardPage.vue'),
+      },
+      {
+        path: 'calendar',
+        component: () => import('pages/CalendarPage.vue'),
+      },
+      {
+        path: 'create',
+        component: () => import('pages/CreatePostPage.vue'),
+      },
+      {
+        path: 'post/:id',
+        component: () => import('pages/PostDetailPage.vue'),
+      },
+      {
+        path: 'campaigns',
+        component: () => import('pages/CampaignsPage.vue'),
+      },
+      {
+        path: 'users',
+        component: () => import('pages/UsersPage.vue'),
+        meta: { requiresAdmin: true },
+      },
+      {
+        path: 'backoffice/phases',
+        component: () => import('pages/PhasesPage.vue'),
+        meta: { requiresAdmin: true },
+      },
+      {
+        path: 'backoffice/roles',
+        component: () => import('pages/RolesPage.vue'),
+        meta: { requiresAdmin: true },
+      },
+    ],
   },
 
   // Always leave this as last one,
