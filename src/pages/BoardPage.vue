@@ -1,6 +1,7 @@
 <template>
   <q-page class="board-page">
     <div class="q-pa-md">
+      <!-- Header -->
       <div class="row items-center q-mb-md">
         <div class="text-h5 text-weight-bold">Board de Produção</div>
         <q-space />
@@ -9,153 +10,216 @@
           icon="add"
           label="Nova Postagem"
           to="/create"
+          unelevated
         />
       </div>
 
-      <div class="board-container">
+      <!-- Loading state -->
+      <div v-if="loading" class="row justify-center q-py-xl">
+        <q-spinner color="primary" size="50px" />
+      </div>
+
+      <!-- Board Container -->
+      <div v-else-if="phases.length > 0" class="board-container">
         <div
-          v-for="column in columns"
-          :key="column.key"
+          v-for="phase in phases"
+          :key="phase.key"
+          v-memo="[postsByStatus[phase.key]?.length, phase.key]"
           class="board-column"
-          :style="`border-top: 4px solid var(--q-${column.color})`"
-          @drop="onDrop($event, column.key)"
-          @dragover.prevent
-          @dragenter.prevent
         >
+          <!-- Column Header -->
           <div class="column-header">
-            <q-icon :name="column.icon" :color="column.color" size="sm" class="q-mr-xs" />
-            <div class="text-subtitle1 text-weight-bold">
-              {{ column.title }}
-            </div>
+            <q-icon :name="phase.icon" :color="phase.color" size="sm" />
+            <div class="text-subtitle1 text-weight-bold">{{ phase.title }}</div>
             <q-space />
-            <q-badge :color="column.color" :label="getColumnCount(column.key)" />
+            <q-badge :color="phase.color" :label="getPostCount(phase.key)" />
           </div>
 
-          <div class="column-content">
-            <div
-              v-for="post in postsByStatus[column.key]"
-              :key="post.id"
-              draggable="true"
-              @dragstart="onDragStart($event, post)"
-              class="q-mb-sm"
-            >
-              <PostCard :post="post" @click="openPostDetail(post.id)" />
-            </div>
+          <!-- Column Body with VueDraggable -->
+          <draggable
+            :list="postsByStatus[phase.key]"
+            group="posts"
+            :animation="200"
+            ghost-class="ghost-card"
+            drag-class="drag-card"
+            item-key="id"
+            class="column-body"
+            @change="(event) => handleDragChange(event, phase.key)"
+          >
+            <template #item="{ element }">
+              <div 
+                class="post-card-wrapper" 
+                @click="openPostDetail(element.id)"
+              >
+                <PostCard :post="element" />
+              </div>
+            </template>
+          </draggable>
 
-            <div v-if="getColumnCount(column.key) === 0" class="empty-state">
-              <q-icon name="inbox" size="48px" color="grey-4" />
-              <div class="text-caption text-grey-5 q-mt-sm">Nenhum post</div>
-            </div>
+          <!-- Empty State -->
+          <div v-if="postsByStatus[phase.key]?.length === 0" class="empty-state">
+            <q-icon name="inbox" size="48px" color="grey-4" />
+            <div class="text-caption text-grey-6 q-mt-sm">Nenhum post aqui</div>
           </div>
         </div>
       </div>
-    </div>
 
+      <!-- Empty state para board sem fases -->
+      <div v-else class="empty-board">
+        <q-icon name="view_column" size="80px" color="grey-4" />
+        <div class="text-h6 text-grey-6 q-mt-md">Nenhuma fase configurada</div>
+        <div class="text-body2 text-grey-5">Configure as fases do workflow no backoffice</div>
+        <q-btn
+          flat
+          color="primary"
+          label="Ir para Configurações"
+          to="/backoffice/phases"
+          class="q-mt-md"
+        />
+      </div>
+    </div>
   </q-page>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useQuasar } from 'quasar'
 import { usePostsStore } from 'stores/posts'
 import { useWorkflowStore } from 'stores/workflow'
-import { useQuasar } from 'quasar'
+import draggable from 'vuedraggable'
 import PostCard from 'components/PostCard.vue'
 
 const router = useRouter()
+const $q = useQuasar()
 const postsStore = usePostsStore()
 const workflowStore = useWorkflowStore()
-const $q = useQuasar()
 
-const draggedPost = ref(null)
+const phases = computed(() => workflowStore.phases)
+const postsByStatus = computed(() => postsStore.postsByStatus)
+const loading = computed(() => postsStore.loading || workflowStore.loading)
 
-const columns = computed(() => workflowStore.phases)
-
-const { postsByStatus } = postsStore
-
-onMounted(() => {
-  workflowStore.fetchPhases()
-  postsStore.fetchPosts()
+onMounted(async () => {
+  await Promise.all([
+    workflowStore.fetchPhases(),
+    postsStore.fetchPosts(),
+  ])
 })
 
-function getColumnCount(status) {
-  return postsByStatus[status]?.length || 0
+function getPostCount(phaseKey) {
+  return postsByStatus.value[phaseKey]?.length || 0
 }
 
-function onDragStart(event, post) {
-  draggedPost.value = post
-  event.dataTransfer.effectAllowed = 'move'
-}
+async function handleDragChange(event, phaseKey) {
+  // Quando um card é adicionado a esta coluna
+  if (event.added) {
+    const post = event.added.element
+    const newStatus = phaseKey
 
-async function onDrop(event, newStatus) {
-  event.preventDefault()
+    console.log(`Moving post ${post.id} to ${newStatus}`)
 
-  if (!draggedPost.value || draggedPost.value.status === newStatus) {
-    return
+    try {
+      const result = await postsStore.updateStatus(post.id, newStatus)
+
+      if (!result.success) {
+        throw new Error(result.error || 'Erro ao atualizar status')
+      }
+
+      $q.notify({
+        type: 'positive',
+        message: 'Status atualizado com sucesso!',
+        position: 'top',
+        timeout: 2000,
+      })
+    } catch (error) {
+      console.error('Error updating post status:', error)
+
+      $q.notify({
+        type: 'negative',
+        message: 'Erro ao mover post. Tente novamente.',
+        position: 'top',
+        timeout: 3000,
+      })
+
+      // Forçar atualização para restaurar estado correto
+      await postsStore.fetchPosts()
+    }
   }
-
-  const result = await postsStore.updateStatus(draggedPost.value.id, newStatus)
-
-  if (result.success) {
-    $q.notify({
-      type: 'positive',
-      message: 'Status atualizado com sucesso!',
-      position: 'top',
-    })
-  } else {
-    $q.notify({
-      type: 'negative',
-      message: result.error || 'Erro ao atualizar status',
-      position: 'top',
-    })
-  }
-
-  draggedPost.value = null
 }
-
 
 function openPostDetail(postId) {
   router.push(`/post/${postId}`)
 }
 </script>
 
-<style scoped lang="scss">
+<style lang="scss" scoped>
 .board-page {
-  background-color: #f5f5f5;
+  background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ee 100%);
   min-height: 100vh;
 }
 
 .board-container {
   display: flex;
-  gap: 16px;
+  gap: 20px;
   overflow-x: auto;
-  padding-bottom: 16px;
+  padding-bottom: 20px;
+  scroll-behavior: smooth;
+
+  &::-webkit-scrollbar {
+    height: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+
+    &:hover {
+      background: rgba(0, 0, 0, 0.3);
+    }
+  }
 }
 
 .board-column {
-  min-width: 300px;
+  min-width: 320px;
+  max-width: 380px;
   flex: 1;
-  background-color: #e0e0e0;
-  border-radius: 8px;
-  padding: 12px;
-  max-height: calc(100vh - 180px);
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   display: flex;
   flex-direction: column;
+  max-height: calc(100vh - 180px);
+  transition: all 0.3s ease;
+
+  &:hover {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    transform: translateY(-2px);
+  }
 }
 
 .column-header {
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.9);
+  border-bottom: 2px solid rgba(0, 0, 0, 0.06);
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  margin-bottom: 12px;
-  padding-bottom: 8px;
-  border-bottom: 2px solid #bdbdbd;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
-.column-content {
+.column-body {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
+  padding: 12px;
+  min-height: 200px;
 
   &::-webkit-scrollbar {
     width: 6px;
@@ -166,8 +230,22 @@ function openPostDetail(postId) {
   }
 
   &::-webkit-scrollbar-thumb {
-    background: #bdbdbd;
+    background: rgba(0, 0, 0, 0.2);
     border-radius: 3px;
+
+    &:hover {
+      background: rgba(0, 0, 0, 0.3);
+    }
+  }
+}
+
+.post-card-wrapper {
+  margin-bottom: 12px;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+
+  &:hover {
+    transform: translateY(-2px);
   }
 }
 
@@ -177,5 +255,30 @@ function openPostDetail(postId) {
   align-items: center;
   justify-content: center;
   padding: 40px 20px;
+  text-align: center;
+}
+
+.empty-board {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+  text-align: center;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+// Estilos do vuedraggable
+:deep(.ghost-card) {
+  opacity: 0.3;
+  background: #e3f2fd;
+}
+
+:deep(.drag-card) {
+  cursor: grabbing !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  transform: rotate(2deg);
 }
 </style>

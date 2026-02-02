@@ -7,6 +7,7 @@ export const usePostsStore = defineStore('posts', () => {
   const posts = ref([])
   const loading = ref(false)
   const selectedPost = ref(null)
+  const updating = ref(new Set()) // IDs dos posts sendo atualizados
 
   const postsByStatus = computed(() => {
     const grouped = {
@@ -132,22 +133,41 @@ export const usePostsStore = defineStore('posts', () => {
   async function updatePost(id, updates) {
     loading.value = true
     try {
-      const { data, error } = await supabase
+      // Atualizar no banco
+      const { error: updateError } = await supabase
         .from('posts')
         .update(updates)
         .eq('id', id)
-        .select()
+
+      if (updateError) throw updateError
+
+      // Buscar dados completos atualizados (com relacionamentos)
+      const { data, error: selectError } = await supabase
+        .from('posts')
+        .select(
+          `
+          *,
+          created_by_user:created_by(id, name, avatar_url),
+          responsible_user:responsible_user_id(id, name, avatar_url),
+          post_creatives(*),
+          post_tags(*)
+        `
+        )
+        .eq('id', id)
         .single()
 
-      if (error) throw error
+      if (selectError) throw selectError
 
+      // Atualizar no array de posts (in-place, sem criar novo array)
       const index = posts.value.findIndex((p) => p.id === id)
       if (index !== -1) {
-        posts.value[index] = { ...posts.value[index], ...data }
+        // Object.assign mantém a referência do array e apenas atualiza o objeto
+        Object.assign(posts.value[index], data)
       }
 
+      // Atualizar selectedPost se for o mesmo
       if (selectedPost.value?.id === id) {
-        selectedPost.value = { ...selectedPost.value, ...data }
+        selectedPost.value = data
       }
 
       return { success: true, data }
@@ -160,7 +180,19 @@ export const usePostsStore = defineStore('posts', () => {
   }
 
   async function updateStatus(id, newStatus) {
-    return await updatePost(id, { status: newStatus })
+    // Evitar múltiplas atualizações simultâneas do mesmo post
+    if (updating.value.has(id)) {
+      console.warn('⚠️ Post já está sendo atualizado:', id)
+      return { success: false, error: 'Operação em andamento' }
+    }
+
+    updating.value.add(id)
+
+    try {
+      return await updatePost(id, { status: newStatus })
+    } finally {
+      updating.value.delete(id)
+    }
   }
 
   async function deletePost(id) {

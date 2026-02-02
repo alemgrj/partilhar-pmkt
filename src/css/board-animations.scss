@@ -1,0 +1,296 @@
+// ====================================================
+// ANIMAÇÕES DO BOARD DE PRODUÇÃO
+// ====================================================
+
+// Transições suaves para colunas
+.board-column {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+// Animação de entrada de cards
+.card-enter-active {
+  animation: slideIn 0.3s ease-out;
+}
+
+.card-leave-active {
+  animation: slideOut 0.3s ease-in;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes slideOut {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+}
+
+// Feedback de hover nas colunas
+.board-column:hover {
+  transform: translateY(-2px);
+  
+  .board-column-header {
+    background: rgba(255, 255, 255, 0.9);
+  }
+}
+
+// Indicador visual de drop zone
+.drag-over {
+  background: rgba(33, 150, 243, 0.08) !important;
+  border: 2px dashed rgba(33, 150, 243, 0.4) !important;
+  border-radius: 8px;
+  animation: dragOverPulse 1s ease-in-out infinite;
+}
+
+@keyframes dragOverPulse {
+  0%, 100% {
+    background: rgba(33, 150, 243, 0.05);
+  }
+  50% {
+    background: rgba(33, 150, 243, 0.12);
+  }
+}
+
+// Estilo do ghost (placeholder do card arrastado)
+.ghost-card {
+  opacity: 0.4 !important;
+  background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%) !important;
+  border: 2px dashed #2196f3 !important;
+  border-radius: 8px;
+  transform: rotate(0deg) !important;
+  
+  * {
+    visibility: hidden !important;
+  }
+  
+  &::after {
+    content: '↓ Solte aqui';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    visibility: visible !important;
+    color: #2196f3;
+    font-weight: 600;
+    font-size: 14px;
+  }
+}
+
+// Estilo do card sendo arrastado
+.drag-card {
+  cursor: grabbing !important;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3) !important;
+  transform: rotate(3deg) scale(1.05) !important;
+  z-index: 9999 !important;
+  opacity: 0.9 !important;
+  transition: transform 0.2s ease !important;
+}
+
+// Animação de loading
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loading-spinner {
+  animation: spin 1s linear infinite;
+}
+
+// Animação de fade in/out
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+// Animação de bounce para badges
+@keyframes badgeBounce {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+}
+
+.badge-bounce {
+  animation: badgeBounce 0.5s ease;
+}
+
+// Animação de shake para erros
+@keyframes shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  10%, 30%, 50%, 70%, 90% {
+    transform: translateX(-5px);
+  }
+  20%, 40%, 60%, 80% {
+    transform: translateX(5px);
+  }
+}
+
+.shake-error {
+  animation: shake 0.5s ease;
+}
+
+// Animação de glow para highlight
+@keyframes glow {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(33, 150, 243, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(33, 150, 243, 0.8);
+  }
+}
+
+.highlight-glow {
+  animation: glow 1.5s ease-in-out infinite;
+}
+
+// Animação de flip para cards
+@keyframes flip {
+  from {
+    transform: rotateY(0deg);
+  }
+  to {
+    transform: rotateY(180deg);
+  }
+}
+
+.card-flip {
+  animation: flip 0.6s ease;
+}
+
+// Hover effect suave para cards
+.post-card-draggable {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+  
+  &:active {
+    transform: translateY(-2px);
+  }
+}
+
+// Animação de pulso para novos items
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(33, 150, 243, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(33, 150, 243, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(33, 150, 243, 0);
+  }
+}
+
+.new-item-pulse {
+  animation: pulse 2s ease-out;
+}
+
+// Transição suave de altura
+.height-transition {
+  transition: height 0.3s ease, max-height 0.3s ease;
+  overflow: hidden;
+}
+
+// Skeleton loading animation
+@keyframes skeleton-loading {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton-loader {
+  background: linear-gradient(
+    90deg,
+    #f0f0f0 0%,
+    #e0e0e0 50%,
+    #f0f0f0 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s ease-in-out infinite;
+}
+
+// Smooth scroll
+.smooth-scroll {
+  scroll-behavior: smooth;
+}
+
+// Animação de appear para toda a board
+@keyframes boardAppear {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.board-container {
+  animation: boardAppear 0.5s ease-out;
+}
+
+// Stagger animation para colunas
+.board-column {
+  &:nth-child(1) {
+    animation-delay: 0s;
+  }
+  &:nth-child(2) {
+    animation-delay: 0.1s;
+  }
+  &:nth-child(3) {
+    animation-delay: 0.2s;
+  }
+  &:nth-child(4) {
+    animation-delay: 0.3s;
+  }
+  &:nth-child(5) {
+    animation-delay: 0.4s;
+  }
+  &:nth-child(6) {
+    animation-delay: 0.5s;
+  }
+}
+
+// Reduce motion para acessibilidade
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

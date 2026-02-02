@@ -51,6 +51,11 @@ const routes = [
         component: () => import('pages/RolesPage.vue'),
         meta: { requiresAdmin: true },
       },
+      {
+        path: 'debug/session',
+        component: () => import('pages/SessionDebugPage.vue'),
+        meta: { requiresAdmin: true },
+      },
     ],
   },
 

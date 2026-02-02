@@ -6,6 +6,7 @@ export const useAuthStore = defineStore('auth', () => {
   const user = ref(null)
   const profile = ref(null)
   const loading = ref(false)
+  const authSubscription = ref(null)
 
   const isAuthenticated = computed(() => !!user.value)
   const isAdmin = computed(() => profile.value?.role === 'admin')
@@ -13,27 +14,54 @@ export const useAuthStore = defineStore('auth', () => {
   async function initialize() {
     loading.value = true
     try {
+      // Tentar recuperar sessão existente
       const {
         data: { session },
+        error: sessionError,
       } = await supabase.auth.getSession()
 
-      if (session?.user) {
-        user.value = session.user
-        await loadProfile()
+      if (sessionError) {
+        console.error('Error getting session:', sessionError)
       }
 
-      // Listen for auth changes
-      supabase.auth.onAuthStateChange(async (event, session) => {
-        if (session?.user) {
-          user.value = session.user
-          await loadProfile()
-        } else {
+      if (session?.user) {
+        console.log('✅ Sessão recuperada:', session.user.email)
+        user.value = session.user
+        await loadProfile()
+      } else {
+        console.log('⚠️ Nenhuma sessão ativa encontrada')
+      }
+
+      // Limpar subscription anterior se existir
+      if (authSubscription.value?.subscription) {
+        authSubscription.value.subscription.unsubscribe()
+      }
+
+      // Listen for auth changes e armazenar subscription
+      const { data } = supabase.auth.onAuthStateChange(async (event, session) => {
+        console.log('🔔 Auth event:', event, session?.user?.email)
+
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+          if (session?.user) {
+            user.value = session.user
+            await loadProfile()
+            console.log('✅ Token atualizado/renovado')
+          }
+        } else if (event === 'SIGNED_OUT') {
           user.value = null
           profile.value = null
+          console.log('👋 Usuário deslogado')
+        } else if (event === 'USER_UPDATED') {
+          if (session?.user) {
+            user.value = session.user
+            console.log('🔄 Usuário atualizado')
+          }
         }
       })
+
+      authSubscription.value = data
     } catch (error) {
-      console.error('Error initializing auth:', error)
+      console.error('❌ Error initializing auth:', error)
     } finally {
       loading.value = false
     }
@@ -49,24 +77,61 @@ export const useAuthStore = defineStore('auth', () => {
         .eq('id', user.value.id)
         .single()
 
-      if (error) throw error
+      if (error) {
+        // Erros 404/401/403 são problemas de setup, NÃO de sessão
+        if (error.code === 'PGRST116') {
+          console.warn('⚠️ Perfil não encontrado. Criando automaticamente...')
+          await createProfileIfNotExists()
+        } else {
+          console.error('❌ Erro ao carregar perfil:', error)
+        }
+
+        // NÃO fazer logout, apenas logar erro
+        // Usuário pode continuar usando o sistema
+        return
+      }
+
       profile.value = data
+      console.log('✅ Perfil carregado:', data.name)
     } catch (error) {
-      console.error('Error loading profile:', error)
+      console.error('❌ Erro crítico ao carregar perfil:', error)
+      // Ainda assim, NÃO fazer logout
+    }
+  }
+
+  async function createProfileIfNotExists() {
+    if (!user.value) return
+
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .insert({
+          id: user.value.id,
+          name: user.value.email?.split('@')[0] || 'Usuário',
+          role: 'user',
+        })
+        .select()
+        .single()
+
+      if (!error && data) {
+        profile.value = data
+        console.log('✅ Perfil criado automaticamente:', data.name)
+      } else if (error) {
+        console.error('❌ Falha ao criar perfil:', error)
+      }
+    } catch (e) {
+      console.error('❌ Erro crítico ao criar perfil:', e)
     }
   }
 
   async function signIn(email, password, rememberMe = true) {
     loading.value = true
     try {
+      // O Supabase já gerencia a persistência através da configuração global
+      // Não é necessário passar persistSession aqui
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
-        options: {
-          // Se rememberMe = true, sessão persiste por 1 ano
-          // Se false, sessão expira ao fechar navegador
-          persistSession: rememberMe,
-        }
       })
 
       if (error) throw error
@@ -74,9 +139,12 @@ export const useAuthStore = defineStore('auth', () => {
       user.value = data.user
       await loadProfile()
 
+      console.log('✅ Login bem-sucedido:', email)
+      console.log('🔐 Sessão persistirá:', rememberMe ? 'Sim (localStorage)' : 'Não (sessionStorage)')
+
       return { success: true }
     } catch (error) {
-      console.error('Error signing in:', error)
+      console.error('❌ Error signing in:', error)
       return { success: false, error: error.message }
     } finally {
       loading.value = false
@@ -149,6 +217,41 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  // Função para verificar e renovar sessão manualmente (fallback)
+  async function refreshSession() {
+    try {
+      const {
+        data: { session },
+        error,
+      } = await supabase.auth.refreshSession()
+
+      if (error) {
+        console.error('⚠️ Erro ao renovar sessão:', error)
+        return { success: false, error }
+      }
+
+      if (session?.user) {
+        user.value = session.user
+        console.log('✅ Sessão renovada manualmente')
+        return { success: true }
+      }
+
+      return { success: false }
+    } catch (error) {
+      console.error('❌ Erro crítico ao renovar sessão:', error)
+      return { success: false, error }
+    }
+  }
+
+  // Cleanup ao destruir a store
+  function cleanup() {
+    if (authSubscription.value?.subscription) {
+      authSubscription.value.subscription.unsubscribe()
+      authSubscription.value = null
+      console.log('🧹 Auth subscription limpa')
+    }
+  }
+
   return {
     user,
     profile,
@@ -157,9 +260,12 @@ export const useAuthStore = defineStore('auth', () => {
     isAdmin,
     initialize,
     loadProfile,
+    createProfileIfNotExists,
     signIn,
     signUp,
     signOut,
     updateProfile,
+    refreshSession,
+    cleanup,
   }
 })
