@@ -117,6 +117,10 @@ const props = defineProps({
     type: String,
     default: '',
   },
+  postFormat: {
+    type: String,
+    default: null,
+  },
   autoPlay: {
     type: Boolean,
     default: false,

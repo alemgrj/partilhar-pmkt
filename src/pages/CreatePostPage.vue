@@ -20,9 +20,13 @@
       <div class="row q-col-gutter-md q-pa-md">
         <!-- Coluna Esquerda: Formulário -->
         <div class="col-12 col-md-6">
-          <q-card flat bordered>
+          <!-- Card 1: Destino da Publicação -->
+          <q-card flat bordered class="q-mb-md">
             <q-card-section>
-              <div class="text-h6 q-mb-md">Informações da Postagem</div>
+              <div class="text-h6 q-mb-md">
+                <q-icon name="publish" class="q-mr-sm" />
+                Destino da Publicação
+              </div>
 
               <q-form class="q-gutter-md">
                 <!-- Rede Social -->
@@ -40,86 +44,139 @@
                   </template>
                 </q-select>
 
-                <!-- Tipo de Post e Criativo -->
-                <div class="row q-col-gutter-md">
-                  <div class="col-6">
-                    <q-select
-                      v-model="form.post_type"
-                      :options="postTypeOptions"
-                      label="Tipo *"
-                      outlined
-                      emit-value
-                      map-options
-                      :rules="[(val) => !!val || 'Campo obrigatório']"
-                    />
-                  </div>
-                  <div class="col-6">
-                    <q-select
-                      v-model="form.creative_type"
-                      :options="creativeTypeOptions"
-                      label="Tipo de Criativo *"
-                      outlined
-                      emit-value
-                      map-options
-                      :rules="[(val) => !!val || 'Campo obrigatório']"
-                      @update:model-value="onCreativeTypeChange"
-                    />
-                  </div>
-                </div>
-
-                <!-- Campanha -->
+                <!-- Conta da Plataforma (Facebook/Instagram) -->
                 <q-select
-                  v-model="form.campaign_id"
-                  :options="campaignOptions"
-                  label="Campanha"
+                  v-if="form.social_network === 'instagram' || form.social_network === 'facebook'"
+                  v-model="form.account_id"
+                  :options="accountOptions"
+                  :label="form.social_network === 'instagram' ? 'Conta Instagram *' : 'Página Facebook *'"
                   outlined
                   emit-value
                   map-options
-                  clearable
-                  hint="Selecione uma campanha existente"
+                  :rules="[(val) => !!val || 'Campo obrigatório para publicação via Meta API']"
+                  hint="Selecione a conta onde publicar"
                 >
                   <template v-slot:prepend>
-                    <q-icon name="campaign" />
+                    <q-icon name="account_circle" />
                   </template>
                   <template v-slot:after>
                     <q-btn
                       flat
                       round
                       dense
-                      icon="add"
-                      @click.stop="showQuickCampaignDialog = true"
+                      icon="settings"
                       color="primary"
+                      @click="showAccountSetupDialog = true"
                     >
-                      <q-tooltip>Criar campanha rápida</q-tooltip>
+                      <q-tooltip>Gerenciar contas conectadas</q-tooltip>
                     </q-btn>
+                  </template>
+                  <template v-slot:no-option>
+                    <q-item>
+                      <q-item-section class="text-grey">
+                        <q-item-label>Nenhuma conta conectada</q-item-label>
+                        <q-item-label caption>Configure suas contas nas Configurações</q-item-label>
+                      </q-item-section>
+                    </q-item>
                   </template>
                 </q-select>
 
-                <!-- Nome customizado (se não selecionar campanha) -->
-                <q-input
-                  v-if="!form.campaign_id"
-                  v-model="form.campaign_name"
-                  label="Nome da Postagem"
+                <!-- Tipo de Publicação -->
+                <q-select
+                  v-model="form.post_type"
+                  :options="postTypeOptions"
+                  label="Tipo de Publicação *"
                   outlined
-                  hint="Ex: Post de Black Friday, Lançamento Produto X"
-                >
-                  <template v-slot:prepend>
-                    <q-icon name="title" />
-                  </template>
-                </q-input>
-
-                <!-- Data e Hora -->
-                <q-input
-                  v-model="form.scheduled_date"
-                  label="Data e Hora de Publicação *"
-                  type="datetime-local"
-                  outlined
+                  emit-value
+                  map-options
                   :rules="[(val) => !!val || 'Campo obrigatório']"
                 >
                   <template v-slot:prepend>
-                    <q-icon name="event" />
+                    <q-icon name="ads_click" />
                   </template>
-                </q-input>
+                </q-select>
+
+                <!-- Conta de Anúncios (se tráfego pago) -->
+                <q-select
+                  v-if="form.post_type === 'paid'"
+                  v-model="form.ad_account_id"
+                  :options="adAccountOptions"
+                  label="Conta de Anúncios"
+                  outlined
+                  emit-value
+                  map-options
+                  hint="Necessário para tráfego pago"
+                >
+                  <template v-slot:prepend>
+                    <q-icon name="paid" />
+                  </template>
+                  <template v-slot:no-option>
+                    <q-item>
+                      <q-item-section class="text-grey">
+                        Configure contas de anúncios nas Configurações
+                      </q-item-section>
+                    </q-item>
+                  </template>
+                </q-select>
+              </q-form>
+            </q-card-section>
+          </q-card>
+
+          <!-- Card 2: Formato e Conteúdo -->
+          <q-card flat bordered class="q-mb-md">
+            <q-card-section>
+              <div class="text-h6 q-mb-md">
+                <q-icon name="image" class="q-mr-sm" />
+                Formato e Conteúdo
+              </div>
+
+              <q-form class="q-gutter-md">
+                <!-- Tipo de Criativo -->
+                <q-select
+                  v-model="form.creative_type"
+                  :options="creativeTypeOptions"
+                  label="Tipo de Criativo *"
+                  outlined
+                  emit-value
+                  map-options
+                  :rules="[(val) => !!val || 'Campo obrigatório']"
+                  @update:model-value="onCreativeTypeChange"
+                >
+                  <template v-slot:prepend>
+                    <q-icon name="photo_library" />
+                  </template>
+                </q-select>
+
+                <!-- Formato da Postagem -->
+                <q-select
+                  v-if="form.social_network"
+                  v-model="form.post_format"
+                  :options="formatOptions"
+                  label="Formato da Postagem *"
+                  outlined
+                  emit-value
+                  map-options
+                  :rules="[(val) => !!val || 'Campo obrigatório']"
+                  hint="Escolha o formato ideal para o tipo de postagem"
+                >
+                  <template v-slot:prepend>
+                    <q-icon name="aspect_ratio" />
+                  </template>
+                  <template v-slot:option="scope">
+                    <q-item v-bind="scope.itemProps">
+                      <q-item-section>
+                        <q-item-label>{{ scope.opt.label }}</q-item-label>
+                        <q-item-label caption>{{ scope.opt.description }}</q-item-label>
+                      </q-item-section>
+                      <q-item-section side>
+                        <q-badge
+                          :color="getPriorityColor(scope.opt.priority)"
+                          :label="scope.opt.priority"
+                        />
+                      </q-item-section>
+                    </q-item>
+                  </template>
+                </q-select>
 
                 <!-- Upload de Criativos -->
                 <div class="upload-section">
@@ -194,6 +251,17 @@
                         </div>
                       </div>
                       <q-btn
+                        v-if="file.type.startsWith('image/') && form.creative_type === 'image'"
+                        flat
+                        round
+                        dense
+                        icon="crop"
+                        color="primary"
+                        @click="openCropper(file, index)"
+                      >
+                        <q-tooltip>Enquadrar imagem</q-tooltip>
+                      </q-btn>
+                      <q-btn
                         flat
                         round
                         dense
@@ -232,6 +300,104 @@
               </q-form>
             </q-card-section>
           </q-card>
+
+          <!-- Card 3: Agendamento -->
+          <q-card flat bordered>
+            <q-card-section>
+              <div class="text-h6 q-mb-md">
+                <q-icon name="schedule" class="q-mr-sm" />
+                Agendamento e Campanha
+              </div>
+
+              <q-form class="q-gutter-md">
+                <!-- Tipo de Publicação -->
+                <q-select
+                  v-model="form.publish_type"
+                  :options="publishTypeOptions"
+                  label="Quando Publicar *"
+                  outlined
+                  emit-value
+                  map-options
+                  :rules="[(val) => !!val || 'Campo obrigatório']"
+                >
+                  <template v-slot:prepend>
+                    <q-icon :name="form.publish_type === 'immediate' ? 'flash_on' : 'schedule'" />
+                  </template>
+                </q-select>
+
+                <!-- Data e Hora (condicional - só se agendado) -->
+                <q-input
+                  v-if="form.publish_type === 'scheduled'"
+                  v-model="form.scheduled_date"
+                  label="Data e Hora de Publicação *"
+                  type="datetime-local"
+                  outlined
+                  :rules="[
+                    (val) => !!val || 'Campo obrigatório',
+                    (val) => validateFutureDate(val) || 'Data inválida'
+                  ]"
+                  :hint="getScheduleDateHint()"
+                >
+                  <template v-slot:prepend>
+                    <q-icon name="event" />
+                  </template>
+                </q-input>
+
+                <!-- Indicador para publicação imediata -->
+                <q-banner
+                  v-if="form.publish_type === 'immediate'"
+                  class="bg-info text-white"
+                  rounded
+                >
+                  <template v-slot:avatar>
+                    <q-icon name="info" color="white" />
+                  </template>
+                  A postagem será publicada imediatamente ao clicar em "Criar Postagem"
+                </q-banner>
+
+                <!-- Campanha -->
+                <q-select
+                  v-model="form.campaign_id"
+                  :options="campaignOptions"
+                  label="Campanha (Opcional)"
+                  outlined
+                  emit-value
+                  map-options
+                  clearable
+                  hint="Agrupe posts em campanhas para melhor organização"
+                >
+                  <template v-slot:prepend>
+                    <q-icon name="campaign" />
+                  </template>
+                  <template v-slot:after>
+                    <q-btn
+                      flat
+                      round
+                      dense
+                      icon="add"
+                      @click.stop="showQuickCampaignDialog = true"
+                      color="primary"
+                    >
+                      <q-tooltip>Criar campanha rápida</q-tooltip>
+                    </q-btn>
+                  </template>
+                </q-select>
+
+                <!-- Nome customizado (se não selecionar campanha) -->
+                <q-input
+                  v-if="!form.campaign_id"
+                  v-model="form.campaign_name"
+                  label="Nome da Postagem"
+                  outlined
+                  hint="Ex: Post de Black Friday, Lançamento Produto X"
+                >
+                  <template v-slot:prepend>
+                    <q-icon name="title" />
+                  </template>
+                </q-input>
+              </q-form>
+            </q-card-section>
+          </q-card>
         </div>
 
         <!-- Coluna Direita: Preview -->
@@ -255,13 +421,18 @@
                   </div>
                 </div>
 
-                <MobilePreview v-else :platform="form.social_network">
+                <MobilePreview 
+                  v-else 
+                  :platform="form.social_network"
+                  :post-format="form.post_format"
+                >
                   <!-- Image Preview -->
                   <ImagePreview
                     v-if="form.creative_type === 'image' && uploadedFiles[0]"
                     :image-url="uploadedFiles[0].url"
                     :caption="form.caption"
                     :platform="form.social_network"
+                    :post-format="form.post_format"
                   />
 
                   <!-- Video Preview -->
@@ -270,6 +441,7 @@
                     :video-url="uploadedFiles[0].url"
                     :caption="form.caption"
                     :platform="form.social_network"
+                    :post-format="form.post_format"
                   />
 
                   <!-- Carousel Preview -->
@@ -277,6 +449,7 @@
                     v-else-if="form.creative_type === 'carousel'"
                     :items="uploadedFiles"
                     :caption="form.caption"
+                    :post-format="form.post_format"
                   />
                 </MobilePreview>
               </q-card-section>
@@ -333,6 +506,43 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
+
+    <!-- Dialog Image Cropper -->
+    <q-dialog v-model="showCropperDialog" maximized>
+      <ImageCropper
+        v-if="currentCropperFile"
+        :image-url="currentCropperFile.url"
+        :selected-format="selectedFormatConfig"
+        @apply="onCropApply"
+        @cancel="showCropperDialog = false"
+      />
+    </q-dialog>
+
+    <!-- Dialog Configuração de Contas -->
+    <q-dialog v-model="showAccountSetupDialog">
+      <q-card style="min-width: 500px">
+        <q-card-section>
+          <div class="text-h6">Contas Conectadas</div>
+        </q-card-section>
+
+        <q-card-section class="q-pt-none">
+          <q-banner class="bg-orange text-white" rounded>
+            <template v-slot:avatar>
+              <q-icon name="construction" color="white" />
+            </template>
+            <div class="text-subtitle2">Funcionalidade em Desenvolvimento</div>
+            <div class="text-caption q-mt-xs">
+              A conexão de contas Facebook/Instagram via OAuth será implementada em breve.
+              Por enquanto, as postagens são salvas localmente para publicação manual.
+            </div>
+          </q-banner>
+        </q-card-section>
+
+        <q-card-actions align="right">
+          <q-btn label="Fechar" flat color="primary" v-close-popup />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 
@@ -344,12 +554,15 @@ import { useCampaignsStore } from 'stores/campaigns'
 import { useQuasar } from 'quasar'
 import { useFileUpload } from 'src/composables/useFileUpload'
 import { useCreativeValidation } from 'src/composables/useCreativeValidation'
+import { getFormatOptions, getMainFormat } from 'src/constants/postFormats'
+import { getMediaType, getPlacementType, getMaxScheduleDays, toUnixTimestamp, validateFutureDate as validateFutureDateHelper } from 'src/utils/formatHelpers'
 import MobilePreview from 'src/components/MobilePreview.vue'
 import ImagePreview from 'src/components/previews/ImagePreview.vue'
 import VideoPreview from 'src/components/previews/VideoPreview.vue'
 import CarouselPreview from 'src/components/previews/CarouselPreview.vue'
 import PostTagsInput from 'src/components/PostTagsInput.vue'
 import CreativeAlerts from 'src/components/CreativeAlerts.vue'
+import ImageCropper from 'src/components/ImageCropper.vue'
 
 const router = useRouter()
 const postsStore = usePostsStore()
@@ -367,14 +580,22 @@ const uploadProgress = ref(0)
 const validations = ref([])
 const showQuickCampaignDialog = ref(false)
 const quickCampaignName = ref('')
+const showCropperDialog = ref(false)
+const currentCropperFile = ref(null)
+const currentCropperIndex = ref(null)
+const showAccountSetupDialog = ref(false)
 
 const form = ref({
   social_network: null,
+  account_id: null, // page_id (Facebook) ou instagram_business_account_id
   post_type: 'organic',
   creative_type: 'image',
+  post_format: null,
+  publish_type: 'scheduled', // 'immediate' ou 'scheduled'
+  scheduled_date: '',
+  ad_account_id: null, // para tráfego pago
   campaign_id: null,
   campaign_name: '',
-  scheduled_date: '',
   caption: '',
   tags: [],
   status: 'ideas',
@@ -405,6 +626,35 @@ const creativeTypeOptions = [
   { label: 'Carrossel', value: 'carousel' },
 ]
 
+const publishTypeOptions = [
+  { label: 'Publicar Agora', value: 'immediate', icon: 'flash_on' },
+  { label: 'Agendar Publicação', value: 'scheduled', icon: 'schedule' },
+]
+
+const accountOptions = computed(() => {
+  // Por enquanto retorna lista vazia
+  // Futuramente virá de uma store de contas conectadas (OAuth)
+  // TODO: Integrar com store de contas quando implementar OAuth
+  return []
+})
+
+const adAccountOptions = computed(() => {
+  // Lista de contas de anúncios do Facebook
+  // TODO: Integrar com Meta Business API para obter contas
+  return []
+})
+
+const formatOptions = computed(() => {
+  if (!form.value.social_network) return []
+  return getFormatOptions(form.value.social_network)
+})
+
+const selectedFormatConfig = computed(() => {
+  if (!form.value.post_format || !form.value.social_network) return null
+  const options = formatOptions.value
+  return options.find((opt) => opt.value === form.value.post_format)
+})
+
 const acceptedFileTypes = computed(() => {
   if (form.value.creative_type === 'video') {
     return 'video/mp4,video/quicktime,video/webm'
@@ -413,31 +663,41 @@ const acceptedFileTypes = computed(() => {
 })
 
 const canCreate = computed(() => {
-  return (
+  const baseValidation =
     form.value.social_network &&
     form.value.post_type &&
     form.value.creative_type &&
-    form.value.scheduled_date &&
+    form.value.post_format &&
     uploadedFiles.value.length > 0
-  )
+
+  // Se for Meta (Instagram/Facebook), precisa de conta
+  const needsAccount = ['instagram', 'facebook'].includes(form.value.social_network)
+  const hasAccount = needsAccount ? !!form.value.account_id : true
+
+  // Se for agendado, precisa de data
+  const needsDate = form.value.publish_type === 'scheduled'
+  const hasDate = needsDate ? !!form.value.scheduled_date : true
+
+  return baseValidation && hasAccount && hasDate
 })
 
 const currentTips = computed(() => {
   const tips = {
     instagram: [
-      'Proporção ideal: 1:1 (quadrado) ou 4:5 (retrato)',
+      'Reels/Stories (9:16) têm melhor alcance orgânico',
+      'Feed retrato (4:5) ocupa mais espaço na tela',
       'Legendas até 2.200 caracteres',
       'Use hashtags relevantes',
-      'Stories: 9:16 (vertical)',
     ],
     tiktok: [
-      'Proporção: 9:16 (vertical)',
-      'Vídeos de 15-60 segundos têm melhor performance',
+      'Formato vertical (9:16) é obrigatório para melhor performance',
+      'Vídeos de 15-60 segundos têm melhor alcance',
       'Use música trending',
-      'Legendas curtas e diretas',
+      'Primeiros 3 segundos são cruciais',
     ],
     facebook: [
-      'Proporção: 1:1 ou 1.91:1',
+      'Formato quadrado (1:1) é o mais familiar',
+      'Feed retrato (4:5) tem melhor engajamento no mobile',
       'Vídeos até 240 minutos',
       'Texto objetivo no início',
     ],
@@ -459,6 +719,30 @@ function getSocialIcon(network) {
     facebook: 'facebook',
   }
   return icons[network] || 'public'
+}
+
+function getPriorityColor(priority) {
+  const colors = {
+    principal: 'green',
+    'muito aceito': 'blue',
+    aceito: 'orange',
+    absoluto: 'deep-purple',
+  }
+  return colors[priority] || 'grey'
+}
+
+function validateFutureDate(dateString) {
+  if (!dateString) return true
+  
+  const maxDays = getMaxScheduleDays(form.value.social_network)
+  const validation = validateFutureDateHelper(dateString, maxDays)
+  
+  return validation.isValid || validation.message
+}
+
+function getScheduleDateHint() {
+  const maxDays = getMaxScheduleDays(form.value.social_network)
+  return `Agende até ${maxDays} dias no futuro`
 }
 
 function triggerFileInput() {
@@ -624,7 +908,8 @@ async function validateFile(file, fileObj) {
       file,
       img.naturalWidth,
       img.naturalHeight,
-      form.value.social_network
+      form.value.social_network,
+      form.value.post_format
     )
     validations.value = results
   } else if (isVideo(file)) {
@@ -642,6 +927,64 @@ async function validateFile(file, fileObj) {
       form.value.social_network
     )
     validations.value = results
+  }
+}
+
+function openCropper(file, index) {
+  if (!form.value.post_format) {
+    $q.notify({
+      type: 'warning',
+      message: 'Selecione um formato de postagem antes de enquadrar a imagem',
+      position: 'top',
+    })
+    return
+  }
+
+  currentCropperFile.value = file
+  currentCropperIndex.value = index
+  showCropperDialog.value = true
+}
+
+async function onCropApply({ blob }) {
+  if (currentCropperIndex.value === null) return
+
+  $q.loading.show({ message: 'Processando imagem...' })
+
+  try {
+    // Upload da imagem cortada
+    const croppedFile = new File([blob], `cropped_${Date.now()}.jpg`, { type: 'image/jpeg' })
+    const result = await uploadFile(croppedFile)
+
+    if (result.success) {
+      // Atualizar arquivo na lista
+      uploadedFiles.value[currentCropperIndex.value] = {
+        url: result.url,
+        path: result.path,
+        name: croppedFile.name,
+        type: croppedFile.type,
+        size: croppedFile.size,
+      }
+
+      // Validar novo arquivo
+      await validateFile(croppedFile, uploadedFiles.value[currentCropperIndex.value])
+
+      $q.notify({
+        type: 'positive',
+        message: 'Imagem enquadrada com sucesso!',
+        position: 'top',
+      })
+    }
+  } catch (error) {
+    $q.notify({
+      type: 'negative',
+      message: error.message || 'Erro ao processar imagem',
+      position: 'top',
+    })
+  } finally {
+    $q.loading.hide()
+    showCropperDialog.value = false
+    currentCropperFile.value = null
+    currentCropperIndex.value = null
   }
 }
 
@@ -678,16 +1021,42 @@ async function createPost() {
   creating.value = true
 
   try {
+    // Derivar campos para API Meta
+    const mediaType = getMediaType(form.value.creative_type)
+    const placement = getPlacementType(form.value.social_network, form.value.post_format)
+    
+    // Preparar timestamp UNIX se agendado
+    let scheduledTimestamp = null
+    let scheduledDateISO = null
+    
+    if (form.value.publish_type === 'scheduled') {
+      scheduledTimestamp = toUnixTimestamp(form.value.scheduled_date)
+      scheduledDateISO = new Date(form.value.scheduled_date).toISOString()
+    }
+
     // Criar post
     const postData = {
+      // Campos existentes
       social_network: form.value.social_network,
       post_type: form.value.post_type,
       creative_type: form.value.creative_type,
+      post_format: form.value.post_format,
       campaign_id: form.value.campaign_id,
       campaign_name: form.value.campaign_name,
-      scheduled_date: new Date(form.value.scheduled_date).toISOString(),
+      scheduled_date: scheduledDateISO,
       caption: form.value.caption,
       status: form.value.status,
+      
+      // Novos campos para Meta API
+      account_id: form.value.account_id,
+      publish_type: form.value.publish_type,
+      scheduled_publish_time: scheduledTimestamp,
+      ad_account_id: form.value.ad_account_id,
+      
+      // Campos derivados
+      media_type: mediaType,
+      placement: placement,
+      aspect_ratio: selectedFormatConfig.value?.aspectRatio,
     }
 
     const result = await postsStore.createPost(postData)
@@ -781,7 +1150,22 @@ function goBack() {
 // Watch para atualizar validações quando mudar rede social
 watch(
   () => form.value.social_network,
-  () => {
+  (newValue) => {
+    // Auto-selecionar formato principal quando mudar rede social
+    if (newValue) {
+      const mainFormat = getMainFormat(newValue)
+      if (mainFormat) {
+        const formatKey = Object.keys(getFormatOptions(newValue).reduce((acc, opt) => {
+          acc[opt.value] = opt
+          return acc
+        }, {})).find(key => {
+          const opt = getFormatOptions(newValue).find(o => o.value === key)
+          return opt.priority === mainFormat.priority
+        })
+        form.value.post_format = formatKey || getFormatOptions(newValue)[0]?.value
+      }
+    }
+
     if (uploadedFiles.value.length > 0 && uploadedFiles.value[0].type.startsWith('image/')) {
       // Re-validar
       const file = uploadedFiles.value[0]
@@ -792,7 +1176,30 @@ watch(
           { name: file.name, size: file.size, type: file.type },
           img.naturalWidth,
           img.naturalHeight,
-          form.value.social_network
+          form.value.social_network,
+          form.value.post_format
+        )
+        validations.value = results
+      }
+    }
+  }
+)
+
+// Watch para revalidar quando mudar formato
+watch(
+  () => form.value.post_format,
+  () => {
+    if (uploadedFiles.value.length > 0 && uploadedFiles.value[0].type.startsWith('image/')) {
+      const file = uploadedFiles.value[0]
+      const img = new Image()
+      img.src = file.url
+      img.onload = async () => {
+        const results = await validateImage(
+          { name: file.name, size: file.size, type: file.type },
+          img.naturalWidth,
+          img.naturalHeight,
+          form.value.social_network,
+          form.value.post_format
         )
         validations.value = results
       }

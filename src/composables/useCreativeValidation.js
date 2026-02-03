@@ -6,20 +6,21 @@ import { ref, computed } from 'vue'
 export function useCreativeValidation() {
   const validations = ref([])
 
-  // Proporções ideais por plataforma
+  // Proporções ideais por plataforma (usando as constantes)
   const idealAspectRatios = {
     instagram: {
-      square: { ratio: 1, label: '1:1 (Quadrado)', tolerance: 0.05 },
-      portrait: { ratio: 4 / 5, label: '4:5 (Retrato)', tolerance: 0.05 },
-      landscape: { ratio: 1.91, label: '1.91:1 (Paisagem)', tolerance: 0.05 },
-      stories: { ratio: 9 / 16, label: '9:16 (Stories)', tolerance: 0.05 },
-    },
-    tiktok: {
-      vertical: { ratio: 9 / 16, label: '9:16 (Vertical)', tolerance: 0.05 },
+      reels: { ratio: 9 / 16, label: '9:16 (Reels/Stories)', tolerance: 0.05 },
+      feed_portrait: { ratio: 4 / 5, label: '4:5 (Feed Retrato)', tolerance: 0.05 },
+      feed_square: { ratio: 1, label: '1:1 (Feed Quadrado)', tolerance: 0.05 },
     },
     facebook: {
+      feed_square: { ratio: 1, label: '1:1 (Feed)', tolerance: 0.05 },
+      feed_portrait: { ratio: 4 / 5, label: '4:5 (Feed)', tolerance: 0.05 },
+      stories: { ratio: 9 / 16, label: '9:16 (Stories/Reels)', tolerance: 0.05 },
+    },
+    tiktok: {
+      default: { ratio: 9 / 16, label: '9:16 (Padrão)', tolerance: 0.05 },
       square: { ratio: 1, label: '1:1 (Quadrado)', tolerance: 0.05 },
-      landscape: { ratio: 1.91, label: '1.91:1 (Paisagem)', tolerance: 0.05 },
     },
     google_ads: {
       square: { ratio: 1, label: '1:1 (Quadrado)', tolerance: 0.05 },
@@ -45,10 +46,32 @@ export function useCreativeValidation() {
   /**
    * Valida proporção de uma imagem
    */
-  function validateImageAspectRatio(width, height, platform = 'instagram') {
+  function validateImageAspectRatio(width, height, platform = 'instagram', selectedFormat = null) {
     const ratio = width / height
     const platformRatios = idealAspectRatios[platform] || idealAspectRatios.instagram
 
+    // Se um formato específico foi selecionado, validar contra ele
+    if (selectedFormat && platformRatios[selectedFormat]) {
+      const targetFormat = platformRatios[selectedFormat]
+      const isIdeal = Math.abs(ratio - targetFormat.ratio) < targetFormat.tolerance
+
+      return {
+        isValid: isIdeal,
+        currentRatio: ratio.toFixed(2),
+        closestIdealRatio: targetFormat.label,
+        message: isIdeal
+          ? `Proporção ideal (${targetFormat.label})`
+          : `Proporção não ideal. Esperado: ${targetFormat.label}`,
+        severity: isIdeal ? 'success' : 'warning',
+        details: {
+          width,
+          height,
+          ratio,
+        },
+      }
+    }
+
+    // Caso contrário, encontrar o formato mais próximo
     let closestRatio = null
     let minDifference = Infinity
 
@@ -239,7 +262,7 @@ export function useCreativeValidation() {
   /**
    * Executa todas as validações para uma imagem
    */
-  async function validateImage(file, width, height, platform = 'instagram') {
+  async function validateImage(file, width, height, platform = 'instagram', selectedFormat = null) {
     const results = []
 
     // Validar formato
@@ -263,7 +286,7 @@ export function useCreativeValidation() {
     // Validar proporção
     results.push({
       type: 'aspectRatio',
-      ...validateImageAspectRatio(width, height, platform),
+      ...validateImageAspectRatio(width, height, platform, selectedFormat),
     })
 
     validations.value = results
